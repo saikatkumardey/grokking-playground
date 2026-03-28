@@ -1,0 +1,2730 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Grokking Playground</title>
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'><text y='.9em' font-size='90'>🧠</text></svg>">
+<meta property="og:title" content="Grokking Playground">
+<meta property="og:description" content="Watch a neural network suddenly 'get it' long after memorizing the answers. Interactive demo of the grokking phenomenon, built with vanilla JS.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://saikatkumardey.com/grokking-playground/">
+<meta property="og:image" content="https://saikatkumardey.com/grokking-playground/og-image.png">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Grokking Playground">
+<meta name="twitter:description" content="watch a neural network suddenly understand math. interactive demo, pure javascript.">
+<meta name="twitter:image" content="https://saikatkumardey.com/grokking-playground/og-image.png">
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.7/dist/chart.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Inter', system-ui, sans-serif;
+    background: #0f1117;
+    color: #e0e0e0;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+  header {
+    text-align: center;
+    padding: 28px 16px 12px;
+    border-bottom: 1px solid #23262f;
+  }
+  header h1 {
+    font-size: 2rem;
+    font-weight: 700;
+    color: #f0f0f0;
+    letter-spacing: -0.5px;
+  }
+  header p {
+    color: #8b8fa3;
+    margin-top: 6px;
+    font-size: 1.05rem;
+  }
+
+  /* Explainer section */
+  .explainer {
+    max-width: 780px;
+    margin: 20px auto 0;
+    padding: 0 20px;
+  }
+  .explainer-box {
+    background: #181a20;
+    border: 1px solid #2a2d38;
+    border-left: 3px solid #5b6eea;
+    border-radius: 8px;
+    padding: 16px 20px;
+    font-size: 0.92rem;
+    line-height: 1.65;
+    color: #b8bcd0;
+  }
+  .explainer-box strong {
+    color: #e0e0e0;
+  }
+  .explainer-box .highlight-term {
+    color: #68d391;
+    font-weight: 600;
+  }
+
+  .app {
+    max-width: 1400px;
+    width: 100%;
+    margin: 0 auto;
+    padding: 20px;
+  }
+  .settings-bar {
+    width: 100%;
+    margin-bottom: 14px;
+  }
+  .settings-toggle {
+    background: none;
+    border: 1px solid #2a2d38;
+    border-radius: 6px;
+    color: #6b7080;
+    padding: 6px 16px;
+    font-size: 0.8rem;
+    cursor: pointer;
+    font-family: inherit;
+  }
+  .settings-toggle:hover { border-color: #5b6eea; color: #9ca0b0; }
+  .settings-toggle.open { color: #5b6eea; border-color: #5b6eea; }
+  .settings-drawer {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+    margin-bottom: 14px;
+  }
+  .settings-drawer .panel {
+    flex: 1;
+    min-width: 200px;
+    max-width: 300px;
+  }
+  .main {
+    width: 100%;
+    display: flex;
+    flex-direction: column;
+    gap: 18px;
+  }
+  .panel, .inference-panel {
+    background: #181a20;
+    border: 1px solid rgba(91, 110, 234, 0.1);
+    border-radius: 10px;
+    padding: 16px;
+  }
+  .panel h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b7080;
+    margin-bottom: 12px;
+  }
+  .control {
+    margin-bottom: 14px;
+  }
+  .control label {
+    display: block;
+    font-size: 0.82rem;
+    color: #9ca0b0;
+    margin-bottom: 4px;
+    font-weight: 600;
+  }
+  .control .hint {
+    display: block;
+    font-size: 0.75rem;
+    color: #6b7080;
+    margin-bottom: 6px;
+    font-weight: 400;
+    line-height: 1.4;
+  }
+  .control input[type="number"],
+  .control select {
+    width: 100%;
+    background: #12141a;
+    border: 1px solid #2a2d38;
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 7px 10px;
+    font-size: 0.9rem;
+    outline: none;
+  }
+  .control input[type="number"]:focus,
+  .control select:focus {
+    border-color: #5b6eea;
+  }
+  .control input[type="range"] {
+    width: 100%;
+    accent-color: #5b6eea;
+  }
+  input[type="range"] {
+    -webkit-appearance: none;
+    height: 6px;
+    border-radius: 3px;
+    background: #1e2028;
+    outline: none;
+  }
+  input[type="range"]::-webkit-slider-thumb {
+    -webkit-appearance: none;
+    width: 16px;
+    height: 16px;
+    border-radius: 50%;
+    background: #5b6eea;
+    cursor: pointer;
+    border: 2px solid #0f1117;
+  }
+  .control .range-val {
+    font-size: 0.82rem;
+    color: #7a7f94;
+    float: right;
+    font-weight: 400;
+  }
+  .btn-row {
+    display: flex;
+    gap: 8px;
+  }
+  .btn {
+    flex: 1;
+    padding: 10px 0;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.9rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-start { background: linear-gradient(135deg, #2d6f3e 0%, #1a5c30 100%); color: #c6f6d5; transition: all 0.2s; }
+  .btn-start:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(45, 111, 62, 0.3); }
+  .btn-start.running { background: linear-gradient(135deg, #8b6914 0%, #6b5010 100%); color: #fefcbf; }
+  .btn-start.running:hover { transform: translateY(-1px); box-shadow: 0 4px 12px rgba(139, 105, 20, 0.3); }
+  .btn-reset { background: #2a2d38; color: #b0b4c8; }
+  .btn-reset:hover { background: #353845; }
+  .stats-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+  .stat-card {
+    background: linear-gradient(135deg, #12141a 0%, #181a24 100%);
+    border: 1px solid #23262f;
+    border-radius: 8px;
+    padding: 12px;
+    text-align: center;
+  }
+  .stat-card .val {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #f0f0f0;
+    font-variant-numeric: tabular-nums;
+  }
+  .stat-card .lbl {
+    font-size: 0.72rem;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: #6b7080;
+    margin-top: 2px;
+  }
+  .stat-card.highlight {
+    border-color: rgba(104, 211, 145, 0.3);
+  }
+  .stat-card.highlight .val { color: #68d391; }
+
+  /* Chart section */
+  .chart-wrap {
+    position: relative;
+    width: 100%;
+  }
+  .chart-wrap canvas {
+    width: 100% !important;
+    max-height: 300px;
+  }
+  .chart-note {
+    font-size: 0.78rem;
+    color: #6b7080;
+    margin-top: 8px;
+    line-height: 1.5;
+    padding: 0 2px;
+  }
+  .chart-note .watch {
+    color: #68d391;
+    font-weight: 600;
+  }
+
+  /* Inference section */
+  /* inference-panel shares .panel styles via combined selector above */
+  .inference-panel h3 {
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: #6b7080;
+    margin-bottom: 12px;
+  }
+  .inference-row {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    flex-wrap: wrap;
+    margin-bottom: 12px;
+  }
+  .inference-row input[type="number"] {
+    width: 70px;
+    background: #12141a;
+    border: 1px solid #2a2d38;
+    border-radius: 6px;
+    color: #e0e0e0;
+    padding: 7px 10px;
+    font-size: 0.9rem;
+    outline: none;
+    text-align: center;
+  }
+  .inference-row input[type="number"]:focus { border-color: #5b6eea; }
+  .inference-row .op { color: #6b7080; font-size: 1rem; font-weight: 600; }
+  .btn-predict {
+    padding: 8px 16px;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #5b6eea;
+    color: #fff;
+    transition: background 0.15s;
+  }
+  .btn-predict:hover { background: #6d7ef0; }
+  .btn-random {
+    padding: 8px 12px;
+    border: none;
+    border-radius: 7px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    cursor: pointer;
+    background: #2a2d38;
+    color: #b0b4c8;
+    transition: background 0.15s;
+  }
+  .btn-random:hover { background: #353845; }
+  .inference-result {
+    background: #12141a;
+    border-radius: 8px;
+    padding: 12px 16px;
+    font-size: 0.9rem;
+    line-height: 1.7;
+  }
+  .inference-result .correct { color: #68d391; font-weight: 700; }
+  .inference-result .wrong { color: #e07a5f; font-weight: 700; }
+  .inference-result .formula { color: #b8bcd0; }
+  .inference-result .confidence { color: #7a7f94; font-size: 0.82rem; }
+  .inference-note {
+    font-size: 0.78rem;
+    color: #6b7080;
+    line-height: 1.5;
+    margin-top: 8px;
+  }
+  .settings-drawer input:disabled {
+    opacity: 0.4;
+    cursor: not-allowed;
+  }
+  .phase-badge {
+    display: inline-block;
+    padding: 3px 10px;
+    border-radius: 12px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .phase-memorizing {
+    background: rgba(224, 122, 95, 0.15);
+    color: #e07a5f;
+    border: 1px solid rgba(224, 122, 95, 0.3);
+  }
+  .phase-grokking {
+    background: rgba(104, 211, 145, 0.15);
+    color: #68d391;
+    border: 1px solid rgba(104, 211, 145, 0.3);
+  }
+  .phase-idle {
+    background: rgba(107, 112, 128, 0.15);
+    color: #6b7080;
+    border: 1px solid rgba(107, 112, 128, 0.3);
+  }
+  .net-info {
+    font-size: 0.75rem;
+    color: #6b7080;
+    margin-top: 6px;
+    padding: 6px 10px;
+    background: #12141a;
+    border-radius: 6px;
+  }
+
+
+  footer {
+    text-align: center;
+    padding: 18px;
+    border-top: 1px solid #23262f;
+    font-size: 0.85rem;
+    color: #6b7080;
+  }
+  footer a {
+    color: #7b8bea;
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+  .progress-timeline {
+    margin-bottom: 12px;
+  }
+  .progress-track {
+    height: 6px;
+    background: #1e2028;
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .progress-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #5b6eea, #68d391);
+    border-radius: 3px;
+    transition: width 0.3s ease;
+  }
+  .progress-fill.grokked {
+    background: linear-gradient(90deg, #68d391, #2dd4bf);
+  }
+  .progress-labels {
+    display: flex;
+    justify-content: space-between;
+    margin-top: 6px;
+    font-size: 0.72rem;
+    color: #3a3f50;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .progress-labels span.active {
+    color: #68d391;
+    font-weight: 600;
+  }
+  .hero-start {
+    text-align: center;
+    padding: 24px 20px;
+  }
+  .hero-btn {
+    font-size: 1.2rem;
+    font-weight: 700;
+    letter-spacing: 1px;
+    padding: 14px 48px;
+    border: none;
+    border-radius: 12px;
+    background: linear-gradient(135deg, #5b6eea 0%, #68d391 100%);
+    color: #fff;
+    cursor: pointer;
+    transition: all 0.2s;
+    text-transform: lowercase;
+  }
+  .hero-btn:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 24px rgba(91, 110, 234, 0.4);
+  }
+  .hero-btn:active {
+    transform: translateY(0);
+  }
+  .hero-sub {
+    margin-top: 12px;
+    font-size: 0.85rem;
+    color: #6b7080;
+  }
+  @media (max-width: 860px) {
+    .settings-drawer .panel { max-width: 100%; }
+    .explainer { padding: 0 16px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>grokking, from scratch, in the browser</h1>
+  <p>a neural network memorizes, then suddenly understands</p>
+</header>
+
+<div class="explainer">
+  <div class="explainer-box">
+    let's say you show a neural network half the answers to a addition table (a + b mod p). it memorizes them perfectly. train accuracy 100%, test stays near zero. looks like it just memorized, right?
+    <br><br>
+    then you keep training. nothing happens for a long time. and then, thousands of steps later, something clicks. test accuracy jumps from near-zero to near-perfect. the network figured out the <em>rule</em>, not just the answers. that's <span class="highlight-term">grokking</span>.
+    <br><br>
+    you can try an MLP or a Transformer (<a href="https://arxiv.org/abs/2201.02177" target="_blank" style="color:#7b8bea;">the original paper</a> used a Transformer). both are written from scratch in javascript. the one knob that matters is <strong>weight decay</strong>. play with it.
+  </div>
+</div>
+
+<div class="app">
+  <div class="settings-bar">
+    <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+      <button class="settings-toggle" id="settingsToggle">settings</button>
+      <button class="btn btn-start" id="btnStart" style="display:none; padding:6px 16px; font-size:0.8rem;">Pause</button>
+      <button class="btn btn-reset" id="btnReset" style="padding:6px 16px; font-size:0.8rem;">Reset</button>
+    </div>
+    <div class="settings-drawer" id="settingsDrawer" style="display:none">
+      <div class="panel">
+        <h3>the problem</h3>
+        <div class="control">
+          <label>Model</label>
+          <div class="btn-row" style="margin-bottom: 8px;">
+            <button class="btn" id="btnModelMLP" style="flex:1; font-size:0.8rem; padding:6px; background:#5b6eea; color:#fff;">MLP</button>
+            <button class="btn" id="btnModelTransformer" style="flex:1; font-size:0.8rem; padding:6px; background:#2a2d38; color:#b0b4c8;">Transformer</button>
+          </div>
+        </div>
+        <div class="control">
+          <label>Prime modulus (p) <span class="range-val" id="pVal">97</span></label>
+          <span class="hint">The network learns a + b mod p.</span>
+          <input type="number" id="inputP" min="5" max="127" value="97">
+          <span class="hint" style="color: #e07a5f; display: none;" id="primeWarn">Not a prime. Try 7, 13, 53, 97, or 127.</span>
+        </div>
+        <div class="control">
+          <label>Training fraction <span class="range-val" id="fracVal">50%</span></label>
+          <span class="hint">How much of all (a, b) pairs it gets to train on. The rest are held out.</span>
+          <input type="range" id="inputFrac" min="30" max="90" value="50">
+        </div>
+        <div class="control">
+          <label>Hidden units / d_model <span class="range-val" id="hidVal">64</span></label>
+          <span class="hint" id="hidHint">Single hidden layer size.</span>
+          <input type="range" id="inputHidden" min="64" max="256" step="16" value="64">
+        </div>
+      </div>
+      <div class="panel">
+        <h3>the key knob</h3>
+        <div class="control">
+          <label>Weight decay <span class="range-val" id="wdVal">0.300</span></label>
+          <span class="hint">This is the knob that makes grokking happen. Too little and it memorizes forever. Too much and it can't even memorize. Find the sweet spot.</span>
+          <input type="range" id="inputWD" min="0" max="1000" value="300">
+        </div>
+        <div class="control">
+          <label>Learning rate <span class="range-val" id="lrVal">0.01</span></label>
+          <span class="hint">Step size for gradient descent.</span>
+          <input type="range" id="inputLR" min="0.0001" max="0.1" step="0.0001" value="0.01">
+        </div>
+      </div>
+      <div class="panel">
+        <h3>speed</h3>
+        <div class="control">
+          <label>Steps per frame <span class="range-val" id="spfVal">50</span></label>
+          <input type="range" id="inputSPF" min="1" max="100" value="50">
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="main">
+    <div class="hero-start" id="heroStart">
+      <button class="hero-btn" id="btnHeroStart">start training</button>
+      <div class="hero-sub">press to watch the network learn</div>
+    </div>
+    <div class="progress-timeline">
+      <div class="progress-track">
+        <div class="progress-fill" id="progressFill" style="width: 0%"></div>
+      </div>
+      <div class="progress-labels">
+        <span id="phaseMemorizing">Memorizing</span>
+        <span id="phaseGeneralizing">Generalizing</span>
+        <span id="phaseGrokked">Grokked!</span>
+      </div>
+    </div>
+    <div style="display:flex; gap:18px; flex-wrap:wrap; align-items:flex-start;">
+      <div style="flex:1; min-width:250px;">
+        <div class="stats-grid">
+          <div class="stat-card"><div class="val" id="statStep">0</div><div class="lbl">training step</div></div>
+          <div class="stat-card"><div class="val" id="statSpeed">0</div><div class="lbl">steps/sec</div></div>
+          <div class="stat-card">
+            <div class="val" id="statTrainAcc">0.0%</div>
+            <div class="lbl">train accuracy</div>
+          </div>
+          <div class="stat-card highlight">
+            <div class="val" id="statTestAcc">0.0%</div>
+            <div class="lbl">test accuracy</div>
+          </div>
+        </div>
+      </div>
+      <div class="panel" id="heatmapPanel" style="flex:1; min-width:300px;">
+        <h3>what the network sees <span style="font-weight:400; color:#6b7080; text-transform:none; letter-spacing:0;" id="heatmapStatus">— before training</span></h3>
+        <div style="display:flex; align-items:flex-start; gap:16px; flex-wrap:wrap;">
+          <div style="position:relative;">
+            <canvas id="heatmapCanvas" style="border-radius:4px; image-rendering:pixelated; cursor:crosshair;"></canvas>
+            <div id="heatmapTooltip" style="display:none; position:absolute; background:#181a20; border:1px solid #5b6eea; border-radius:6px; padding:6px 10px; font-size:0.78rem; color:#e0e0e0; pointer-events:none; white-space:nowrap; z-index:10;"></div>
+          </div>
+          <div style="font-size:0.78rem; color:#6b7080; line-height:2;">
+            <span style="display:inline-block;width:10px;height:10px;background:#68d391;border-radius:2px;vertical-align:middle;"></span> correct
+            <span style="display:inline-block;width:10px;height:10px;background:#e07a5f;border-radius:2px;vertical-align:middle;margin-left:10px;"></span> wrong
+            <span style="display:inline-block;width:10px;height:10px;background:#23262f;border-radius:2px;vertical-align:middle;margin-left:10px;"></span> no prediction yet
+            <br>
+            <span style="display:inline-block;width:10px;height:10px;background:#333;border-radius:2px;vertical-align:middle;position:relative;"><span style="position:absolute;top:3px;left:3px;width:4px;height:4px;background:rgba(255,255,255,0.7);border-radius:50%;"></span></span> training (white dot)
+            <span style="display:inline-block;width:10px;height:10px;background:#333;border-radius:2px;vertical-align:middle;margin-left:10px;"></span> test (no dot)
+            <br>
+            <span id="heatmapInfo"></span>
+          </div>
+        </div>
+        <div style="font-size:0.72rem; color:#6b7080; margin-top:8px;">x-axis = a, y-axis = b. watch the test cells turn green.</div>
+      </div>
+    </div>
+    <div style="display:flex; gap:18px; flex-wrap:wrap;">
+      <div class="panel" style="flex:1; min-width:300px;">
+        <h3>Accuracy Over Time</h3>
+        <div class="chart-wrap"><canvas id="chartAcc"></canvas></div>
+        <div class="chart-note">
+          blue = seen data, green = unseen data. <span class="watch">watch the green line.</span>
+        </div>
+      </div>
+      <div class="panel" style="flex:1; min-width:300px;">
+        <h3>Loss Over Time</h3>
+        <div class="chart-wrap"><canvas id="chartLoss"></canvas></div>
+        <div class="chart-note">
+          lower is better. watch test loss plateau then crash — that's the transition.
+        </div>
+      </div>
+    </div>
+    <div class="panel" id="fourierPanel">
+      <h3>fourier spectrum <span style="font-weight:400; color:#6b7080; text-transform:none; letter-spacing:0;">— what frequencies the network uses</span></h3>
+      <div style="font-size:0.78rem; color:#6b7080; margin-bottom:10px;">each bar = one frequency component (k=1 to p/2). after grokking, only a few bars should spike — those are the frequencies that solve modular addition.</div>
+      <canvas id="fourierCanvas" height="150" style="width:100%;"></canvas>
+    </div>
+    <div class="inference-panel">
+      <h3>try it yourself <span class="phase-badge phase-idle" id="phaseBadge">idle</span></h3>
+      <div class="inference-row">
+        <input type="number" id="inferA" min="0" max="96" value="7">
+        <span class="op">+</span>
+        <input type="number" id="inferB" min="0" max="96" value="13">
+        <span class="op">mod <span id="inferP">97</span></span>
+        <button class="btn-predict" id="btnPredict">Predict</button>
+        <button class="btn-random" id="btnRandom">Random</button>
+      </div>
+      <div class="inference-result" id="inferResult" style="display:none"></div>
+      <div class="net-info" id="netInfo">Network: not initialized</div>
+      <div class="inference-note">
+        Try this before and after grokking. Early on, it memorizes training pairs but guesses randomly on new ones. After grokking, it gets everything right.
+      </div>
+    </div>
+    <div class="panel" id="neuronsPanel">
+      <h3>what the neurons learn <span style="font-weight:400; color:#6b7080; text-transform:none; letter-spacing:0;">— first-layer weights on a clock</span></h3>
+      <div style="font-size:0.78rem; color:#6b7080; margin-bottom:10px;">each circle = one hidden neuron. the p points around the clock show its weight for each input value. smooth waves = Fourier features (the network found the circular structure of mod p).</div>
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:0.72rem; color:#6b7080; margin-bottom:6px;">before (step 0)</div>
+          <div id="neuronGridBefore" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+        <div>
+          <div style="font-size:0.72rem; color:#6b7080; margin-bottom:6px;">now (step <span id="neuronStep">0</span>)</div>
+          <div id="neuronGrid" style="display:flex; flex-wrap:wrap; gap:8px;"></div>
+        </div>
+      </div>
+    </div>
+    <div class="panel" id="embeddingsPanel">
+      <h3>learned representations <span style="font-weight:400; color:#6b7080; text-transform:none; letter-spacing:0;" id="embLabel">— PCA of weight vectors</span></h3>
+      <div style="font-size:0.78rem; color:#6b7080; margin-bottom:10px;" id="embDesc">each dot = one hidden neuron's weight vector, projected to 2D via PCA. if neurons learn Fourier features, similar-frequency neurons should cluster. color = index.</div>
+      <div style="display:flex; gap:20px; flex-wrap:wrap;">
+        <div>
+          <div style="font-size:0.72rem; color:#6b7080; margin-bottom:6px;">before (step 0)</div>
+          <canvas id="embBefore" width="200" height="200" style="background:#12141a; border-radius:8px;"></canvas>
+        </div>
+        <div>
+          <div style="font-size:0.72rem; color:#6b7080; margin-bottom:6px;">now (step <span id="embStep">0</span>)</div>
+          <canvas id="embNow" width="200" height="200" style="background:#12141a; border-radius:8px;"></canvas>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <a href="https://arxiv.org/abs/2201.02177" target="_blank">Power et al., 2022 — Grokking: Generalization Beyond Overfitting on Small Algorithmic Datasets</a>
+  &middot; <a href="https://github.com/saikatkumardey/grokking-playground" target="_blank">source</a>
+  &middot; pure javascript
+  &middot; built by <a href="https://saikatkumardey.com" target="_blank">saikat</a>
+</footer>
+
+<script>
+// ===== Utility (main thread only) =====
+function isPrime(n) {
+  if (n < 2) return false;
+  if (n < 4) return true;
+  if (n % 2 === 0 || n % 3 === 0) return false;
+  for (let i = 5; i * i <= n; i += 6) {
+    if (n % i === 0 || n % (i + 2) === 0) return false;
+  }
+  return true;
+}
+
+// ===== Neural Network (do not modify for UI changes) =====
+const nnCode = `
+function shuffle(arr) {
+  for (let i = arr.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [arr[i], arr[j]] = [arr[j], arr[i]];
+  }
+  return arr;
+}
+
+function decodeOneHot(x, p) {
+  let a = 0, b = 0;
+  for (let i = 0; i < p; i++) {
+    if (x[i] === 1) { a = i; break; }
+  }
+  for (let i = 0; i < p; i++) {
+    if (x[p + i] === 1) { b = i; break; }
+  }
+  return [a, b];
+}
+
+class GrokNet {
+  constructor(inputDim, hiddenDim, outputDim) {
+    this.inputDim = inputDim;
+    this.hiddenDim = hiddenDim;
+    this.outputDim = outputDim;
+    const s1 = Math.sqrt(2.0 / inputDim);
+    const s2 = Math.sqrt(2.0 / hiddenDim);
+    this.W1 = this._randMat(hiddenDim, inputDim, s1);
+    this.b1 = new Float64Array(hiddenDim);
+    this.W2 = this._randMat(outputDim, hiddenDim, s2);
+    this.b2 = new Float64Array(outputDim);
+    this.params = ['W1', 'b1', 'W2', 'b2'];
+    this.m = {}; this.v = {};
+    for (const k of this.params) {
+      const n = this[k].length;
+      this.m[k] = new Float64Array(n);
+      this.v[k] = new Float64Array(n);
+    }
+    this.t = 0;
+  }
+
+  _randMat(rows, cols, scale) {
+    const arr = new Float64Array(rows * cols);
+    for (let i = 0; i < arr.length; i++) {
+      const u1 = Math.random(), u2 = Math.random();
+      arr[i] = Math.sqrt(-2 * Math.log(u1 + 1e-12)) * Math.cos(2 * Math.PI * u2) * scale;
+    }
+    return arr;
+  }
+
+  forward(X) {
+    const B = X.length;
+    const H = this.hiddenDim, I = this.inputDim, O = this.outputDim;
+    const Z1 = new Float64Array(B * H);
+    const A1 = new Float64Array(B * H);
+    for (let b = 0; b < B; b++) {
+      const xb = X[b];
+      for (let h = 0; h < H; h++) {
+        let s = this.b1[h];
+        const off = h * I;
+        for (let i = 0; i < I; i++) {
+          if (xb[i] !== 0) s += this.W1[off + i] * xb[i];
+        }
+        Z1[b * H + h] = s;
+        A1[b * H + h] = s > 0 ? s : 0;
+      }
+    }
+    const logits = new Float64Array(B * O);
+    const probs = new Float64Array(B * O);
+    for (let b = 0; b < B; b++) {
+      let maxL = -Infinity;
+      for (let o = 0; o < O; o++) {
+        let s = this.b2[o];
+        const off = o * H;
+        for (let h = 0; h < H; h++) {
+          s += this.W2[off + h] * A1[b * H + h];
+        }
+        logits[b * O + o] = s;
+        if (s > maxL) maxL = s;
+      }
+      let sumExp = 0;
+      for (let o = 0; o < O; o++) {
+        const e = Math.exp(logits[b * O + o] - maxL);
+        probs[b * O + o] = e;
+        sumExp += e;
+      }
+      for (let o = 0; o < O; o++) {
+        probs[b * O + o] /= sumExp;
+      }
+    }
+    return { Z1, A1, probs, B };
+  }
+
+  loss(probs, targets, B) {
+    const O = this.outputDim;
+    let L = 0;
+    for (let b = 0; b < B; b++) {
+      const p = probs[b * O + targets[b]];
+      L -= Math.log(p + 1e-12);
+    }
+    return L / B;
+  }
+
+  accuracy(probs, targets, B) {
+    const O = this.outputDim;
+    let correct = 0;
+    for (let b = 0; b < B; b++) {
+      let maxP = -1, maxI = 0;
+      for (let o = 0; o < O; o++) {
+        if (probs[b * O + o] > maxP) { maxP = probs[b * O + o]; maxI = o; }
+      }
+      if (maxI === targets[b]) correct++;
+    }
+    return correct / B;
+  }
+
+  backward(X, targets, cache) {
+    const { Z1, A1, probs, B } = cache;
+    const H = this.hiddenDim, I = this.inputDim, O = this.outputDim;
+    const dLogits = new Float64Array(probs);
+    for (let b = 0; b < B; b++) {
+      dLogits[b * O + targets[b]] -= 1;
+    }
+    const scale = 1 / B;
+    const dW2 = new Float64Array(O * H);
+    const db2 = new Float64Array(O);
+    for (let b = 0; b < B; b++) {
+      for (let o = 0; o < O; o++) {
+        const dl = dLogits[b * O + o] * scale;
+        db2[o] += dl;
+        const off = o * H;
+        const bH = b * H;
+        for (let h = 0; h < H; h++) {
+          dW2[off + h] += dl * A1[bH + h];
+        }
+      }
+    }
+    const dA1 = new Float64Array(B * H);
+    for (let b = 0; b < B; b++) {
+      for (let o = 0; o < O; o++) {
+        const dl = dLogits[b * O + o] * scale;
+        const off = o * H;
+        const bH = b * H;
+        for (let h = 0; h < H; h++) {
+          dA1[bH + h] += this.W2[off + h] * dl;
+        }
+      }
+    }
+    const dZ1 = new Float64Array(B * H);
+    for (let i = 0; i < B * H; i++) {
+      dZ1[i] = Z1[i] > 0 ? dA1[i] : 0;
+    }
+    const dW1 = new Float64Array(H * I);
+    const db1 = new Float64Array(H);
+    for (let b = 0; b < B; b++) {
+      const xb = X[b];
+      for (let h = 0; h < H; h++) {
+        const dz = dZ1[b * H + h];
+        db1[h] += dz;
+        const off = h * I;
+        for (let i = 0; i < I; i++) {
+          if (xb[i] !== 0) dW1[off + i] += dz * xb[i];
+        }
+      }
+    }
+    return { dW1, db1, dW2, db2 };
+  }
+
+  step(grads, lr, wd) {
+    this.t++;
+    const beta1 = 0.9, beta2 = 0.98, eps = 1e-8;
+    const bc1 = 1 - Math.pow(beta1, this.t);
+    const bc2 = 1 - Math.pow(beta2, this.t);
+    for (const k of this.params) {
+      const param = this[k];
+      const grad = grads['d' + k];
+      const m = this.m[k], v = this.v[k];
+      const isWeight = (k === 'W1' || k === 'W2');
+      for (let i = 0; i < param.length; i++) {
+        m[i] = beta1 * m[i] + (1 - beta1) * grad[i];
+        v[i] = beta2 * v[i] + (1 - beta2) * grad[i] * grad[i];
+        const mHat = m[i] / bc1;
+        const vHat = v[i] / bc2;
+        const adamUpdate = lr * mHat / (Math.sqrt(vHat) + eps);
+        if (isWeight) {
+          param[i] = param[i] * (1 - lr * wd) - adamUpdate;
+        } else {
+          param[i] -= adamUpdate;
+        }
+      }
+    }
+  }
+}
+
+class GrokTransformer {
+  constructor(p, d_model) {
+    this.p = p;
+    this.d_model = d_model;
+    this.nHeads = 4;
+    this.d_key = Math.floor(d_model / this.nHeads);
+    this.d_ff = 4 * d_model;
+    this.seqLen = 3; // positions: a, b, output
+
+    const sEmb = Math.sqrt(1.0 / d_model);
+    const sAttn = Math.sqrt(2.0 / d_model);
+    const sFF1 = Math.sqrt(2.0 / d_model);
+    const sFF2 = Math.sqrt(2.0 / this.d_ff);
+    const sOut = Math.sqrt(2.0 / d_model);
+
+    // Token embedding: p -> d_model
+    this.Wemb = this._randMat(p, d_model, sEmb);
+    // Positional embedding: 3 -> d_model
+    this.Wpos = this._randMat(3, d_model, sEmb);
+
+    // Layer norm 1 (pre-attention): gamma, beta
+    this.ln1_g = new Float64Array(d_model).fill(1.0);
+    this.ln1_b = new Float64Array(d_model);
+
+    // Multi-head attention: Wq, Wk, Wv, Wo
+    this.Wq = this._randMat(d_model, d_model, sAttn);
+    this.bq = new Float64Array(d_model);
+    this.Wk = this._randMat(d_model, d_model, sAttn);
+    this.bk = new Float64Array(d_model);
+    this.Wv = this._randMat(d_model, d_model, sAttn);
+    this.bv = new Float64Array(d_model);
+    this.Wo = this._randMat(d_model, d_model, sAttn);
+    this.bo = new Float64Array(d_model);
+
+    // Layer norm 2 (pre-FFN): gamma, beta
+    this.ln2_g = new Float64Array(d_model).fill(1.0);
+    this.ln2_b = new Float64Array(d_model);
+
+    // FFN: d_model -> d_ff -> d_model
+    this.Wff1 = this._randMat(this.d_ff, d_model, sFF1);
+    this.bff1 = new Float64Array(this.d_ff);
+    this.Wff2 = this._randMat(d_model, this.d_ff, sFF2);
+    this.bff2 = new Float64Array(d_model);
+
+    // Output projection: d_model -> p
+    this.Wout = this._randMat(p, d_model, sOut);
+    this.bout = new Float64Array(p);
+
+    this.params = [
+      'Wemb', 'Wpos',
+      'ln1_g', 'ln1_b', 'Wq', 'bq', 'Wk', 'bk', 'Wv', 'bv', 'Wo', 'bo',
+      'ln2_g', 'ln2_b', 'Wff1', 'bff1', 'Wff2', 'bff2',
+      'Wout', 'bout'
+    ];
+    this.weightParams = new Set([
+      'Wemb', 'Wpos', 'Wq', 'Wk', 'Wv', 'Wo', 'Wff1', 'Wff2', 'Wout'
+    ]);
+
+    this.m = {};
+    this.v = {};
+    for (const k of this.params) {
+      const n = this[k].length;
+      this.m[k] = new Float64Array(n);
+      this.v[k] = new Float64Array(n);
+    }
+    this.t = 0;
+  }
+
+  _randMat(rows, cols, scale) {
+    const arr = new Float64Array(rows * cols);
+    for (let i = 0; i < arr.length; i++) {
+      const u1 = Math.random(), u2 = Math.random();
+      arr[i] = Math.sqrt(-2 * Math.log(u1 + 1e-12)) * Math.cos(2 * Math.PI * u2) * scale;
+    }
+    return arr;
+  }
+
+  // Layer norm: for each vector of size d, normalize then scale+shift
+  _layerNorm(input, gamma, beta, B, S, D) {
+    // input: [B*S*D], gamma: [D], beta: [D]
+    const out = new Float64Array(B * S * D);
+    const mean = new Float64Array(B * S);
+    const rstd = new Float64Array(B * S);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const off = (b * S + s) * D;
+        let mu = 0;
+        for (let d = 0; d < D; d++) mu += input[off + d];
+        mu /= D;
+        let variance = 0;
+        for (let d = 0; d < D; d++) {
+          const diff = input[off + d] - mu;
+          variance += diff * diff;
+        }
+        variance /= D;
+        const rs = 1.0 / Math.sqrt(variance + 1e-5);
+        mean[b * S + s] = mu;
+        rstd[b * S + s] = rs;
+        for (let d = 0; d < D; d++) {
+          out[off + d] = (input[off + d] - mu) * rs * gamma[d] + beta[d];
+        }
+      }
+    }
+    return { out, mean, rstd };
+  }
+
+  forward(X) {
+    const B = X.length;
+    const p = this.p;
+    const D = this.d_model;
+    const S = this.seqLen; // 3
+    const H = this.nHeads;
+    const dk = this.d_key;
+    const dff = this.d_ff;
+
+    // --- Embedding ---
+    // X[b] = {a, b_val}: embed tokens and add positional
+    const emb = new Float64Array(B * S * D);
+    const tokens = new Int32Array(B * S); // store token ids for backward
+    for (let b = 0; b < B; b++) {
+      const a = X[b].a, bv = X[b].b;
+      tokens[b * S + 0] = a;
+      tokens[b * S + 1] = bv;
+      tokens[b * S + 2] = 0; // output token is a dummy (we use positional encoding)
+      for (let d = 0; d < D; d++) {
+        emb[(b * S + 0) * D + d] = this.Wemb[a * D + d] + this.Wpos[0 * D + d];
+        emb[(b * S + 1) * D + d] = this.Wemb[bv * D + d] + this.Wpos[1 * D + d];
+        emb[(b * S + 2) * D + d] = this.Wpos[2 * D + d]; // no token embedding for output pos
+      }
+    }
+
+    // --- Layer Norm 1 (pre-attention) ---
+    const ln1 = this._layerNorm(emb, this.ln1_g, this.ln1_b, B, S, D);
+
+    // --- Multi-head Self-Attention ---
+    // Compute Q, K, V: [B, S, D]
+    const Q = new Float64Array(B * S * D);
+    const K = new Float64Array(B * S * D);
+    const V = new Float64Array(B * S * D);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const inOff = (b * S + s) * D;
+        for (let d = 0; d < D; d++) {
+          let qv = this.bq[d], kv = this.bk[d], vv = this.bv[d];
+          for (let j = 0; j < D; j++) {
+            const x = ln1.out[inOff + j];
+            qv += this.Wq[d * D + j] * x;
+            kv += this.Wk[d * D + j] * x;
+            vv += this.Wv[d * D + j] * x;
+          }
+          Q[inOff + d] = qv;
+          K[inOff + d] = kv;
+          V[inOff + d] = vv;
+        }
+      }
+    }
+
+    // Attention per head: softmax(Q@K^T / sqrt(dk)) @ V with causal mask
+    const attnWeights = new Float64Array(B * H * S * S);
+    const attnOut = new Float64Array(B * S * D);
+    const scale = 1.0 / Math.sqrt(dk);
+
+    for (let b = 0; b < B; b++) {
+      for (let h = 0; h < H; h++) {
+        const hOff = h * dk;
+        // Compute attention scores for this head
+        for (let qi = 0; qi < S; qi++) {
+          const qOff = (b * S + qi) * D + hOff;
+          let maxScore = -Infinity;
+          for (let ki = 0; ki <= qi; ki++) { // causal: only attend to <= qi
+            const kOff = (b * S + ki) * D + hOff;
+            let score = 0;
+            for (let d = 0; d < dk; d++) {
+              score += Q[qOff + d] * K[kOff + d];
+            }
+            score *= scale;
+            attnWeights[(b * H + h) * S * S + qi * S + ki] = score;
+            if (score > maxScore) maxScore = score;
+          }
+          // Softmax (causal: positions > qi get 0)
+          let sumExp = 0;
+          for (let ki = 0; ki <= qi; ki++) {
+            const idx = (b * H + h) * S * S + qi * S + ki;
+            const e = Math.exp(attnWeights[idx] - maxScore);
+            attnWeights[idx] = e;
+            sumExp += e;
+          }
+          for (let ki = 0; ki <= qi; ki++) {
+            attnWeights[(b * H + h) * S * S + qi * S + ki] /= sumExp;
+          }
+          // Masked positions stay 0 (already initialized to 0)
+
+          // Weighted sum of V
+          for (let d = 0; d < dk; d++) {
+            let val = 0;
+            for (let ki = 0; ki <= qi; ki++) {
+              val += attnWeights[(b * H + h) * S * S + qi * S + ki] * V[(b * S + ki) * D + hOff + d];
+            }
+            attnOut[(b * S + qi) * D + hOff + d] = val;
+          }
+        }
+      }
+    }
+
+    // Output projection: attnOut @ Wo + bo
+    const attnProj = new Float64Array(B * S * D);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const inOff = (b * S + s) * D;
+        for (let d = 0; d < D; d++) {
+          let val = this.bo[d];
+          for (let j = 0; j < D; j++) {
+            val += this.Wo[d * D + j] * attnOut[inOff + j];
+          }
+          attnProj[inOff + d] = val;
+        }
+      }
+    }
+
+    // Residual connection: x1 = emb + attnProj
+    const x1 = new Float64Array(B * S * D);
+    for (let i = 0; i < B * S * D; i++) {
+      x1[i] = emb[i] + attnProj[i];
+    }
+
+    // --- Layer Norm 2 (pre-FFN) ---
+    const ln2 = this._layerNorm(x1, this.ln2_g, this.ln2_b, B, S, D);
+
+    // --- FFN ---
+    const ff1 = new Float64Array(B * S * dff);
+    const ff1_relu = new Float64Array(B * S * dff);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const inOff = (b * S + s) * D;
+        const outOff = (b * S + s) * dff;
+        for (let f = 0; f < dff; f++) {
+          let val = this.bff1[f];
+          for (let d = 0; d < D; d++) {
+            val += this.Wff1[f * D + d] * ln2.out[inOff + d];
+          }
+          ff1[outOff + f] = val;
+          ff1_relu[outOff + f] = val > 0 ? val : 0;
+        }
+      }
+    }
+
+    const ff2 = new Float64Array(B * S * D);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const inOff = (b * S + s) * dff;
+        const outOff = (b * S + s) * D;
+        for (let d = 0; d < D; d++) {
+          let val = this.bff2[d];
+          for (let f = 0; f < dff; f++) {
+            val += this.Wff2[d * dff + f] * ff1_relu[inOff + f];
+          }
+          ff2[outOff + d] = val;
+        }
+      }
+    }
+
+    // Residual: x2 = x1 + ff2
+    const x2 = new Float64Array(B * S * D);
+    for (let i = 0; i < B * S * D; i++) {
+      x2[i] = x1[i] + ff2[i];
+    }
+
+    // --- Read from last position (position 2) and project to logits ---
+    const logits = new Float64Array(B * p);
+    const probs = new Float64Array(B * p);
+    for (let b = 0; b < B; b++) {
+      const xOff = (b * S + 2) * D; // last position
+      let maxL = -Infinity;
+      for (let o = 0; o < p; o++) {
+        let val = this.bout[o];
+        for (let d = 0; d < D; d++) {
+          val += this.Wout[o * D + d] * x2[xOff + d];
+        }
+        logits[b * p + o] = val;
+        if (val > maxL) maxL = val;
+      }
+      let sumExp = 0;
+      for (let o = 0; o < p; o++) {
+        const e = Math.exp(logits[b * p + o] - maxL);
+        probs[b * p + o] = e;
+        sumExp += e;
+      }
+      for (let o = 0; o < p; o++) {
+        probs[b * p + o] /= sumExp;
+      }
+    }
+
+    return {
+      probs, B, tokens, emb,
+      ln1, Q, K, V, attnWeights, attnOut, attnProj, x1,
+      ln2, ff1, ff1_relu, ff2, x2, logits
+    };
+  }
+
+  loss(probs, targets, B) {
+    const p = this.p;
+    let L = 0;
+    for (let b = 0; b < B; b++) {
+      L -= Math.log(probs[b * p + targets[b]] + 1e-12);
+    }
+    return L / B;
+  }
+
+  accuracy(probs, targets, B) {
+    const p = this.p;
+    let correct = 0;
+    for (let b = 0; b < B; b++) {
+      let maxP = -1, maxI = 0;
+      for (let o = 0; o < p; o++) {
+        if (probs[b * p + o] > maxP) { maxP = probs[b * p + o]; maxI = o; }
+      }
+      if (maxI === targets[b]) correct++;
+    }
+    return correct / B;
+  }
+
+  backward(X, targets, cache) {
+    const B = cache.B;
+    const p = this.p;
+    const D = this.d_model;
+    const S = this.seqLen;
+    const H = this.nHeads;
+    const dk = this.d_key;
+    const dff = this.d_ff;
+    const invB = 1.0 / B;
+
+    // --- dLogits: softmax grad ---
+    const dLogits = new Float64Array(cache.probs);
+    for (let b = 0; b < B; b++) {
+      dLogits[b * p + targets[b]] -= 1;
+    }
+    // Scale by 1/B
+    for (let i = 0; i < dLogits.length; i++) dLogits[i] *= invB;
+
+    // --- d output projection ---
+    const dWout = new Float64Array(p * D);
+    const dbout = new Float64Array(p);
+    const dx2 = new Float64Array(B * S * D); // only position 2 gets gradient from logits
+
+    for (let b = 0; b < B; b++) {
+      const xOff = (b * S + 2) * D;
+      for (let o = 0; o < p; o++) {
+        const dl = dLogits[b * p + o];
+        dbout[o] += dl;
+        for (let d = 0; d < D; d++) {
+          dWout[o * D + d] += dl * cache.x2[xOff + d];
+          dx2[xOff + d] += this.Wout[o * D + d] * dl;
+        }
+      }
+    }
+
+    // --- Residual: dx2 flows to dx1 and dff2 ---
+    const dx1_from_res2 = new Float64Array(B * S * D);
+    const dff2 = new Float64Array(B * S * D);
+    for (let i = 0; i < B * S * D; i++) {
+      dx1_from_res2[i] = dx2[i];
+      dff2[i] = dx2[i];
+    }
+
+    // --- d FFN backward ---
+    // dff2 -> dWff2, dbff2, dff1_relu
+    const dWff2 = new Float64Array(D * dff);
+    const dbff2 = new Float64Array(D);
+    const dff1_relu = new Float64Array(B * S * dff);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const outOff = (b * S + s) * D;
+        const inOff = (b * S + s) * dff;
+        for (let d = 0; d < D; d++) {
+          const dv = dff2[outOff + d];
+          dbff2[d] += dv;
+          for (let f = 0; f < dff; f++) {
+            dWff2[d * dff + f] += dv * cache.ff1_relu[inOff + f];
+            dff1_relu[inOff + f] += this.Wff2[d * dff + f] * dv;
+          }
+        }
+      }
+    }
+
+    // ReLU backward
+    const dff1 = new Float64Array(B * S * dff);
+    for (let i = 0; i < dff1.length; i++) {
+      dff1[i] = cache.ff1[i] > 0 ? dff1_relu[i] : 0;
+    }
+
+    // dff1 -> dWff1, dbff1, dln2_out
+    const dWff1 = new Float64Array(dff * D);
+    const dbff1 = new Float64Array(dff);
+    const dln2_out = new Float64Array(B * S * D);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const outOff = (b * S + s) * dff;
+        const inOff = (b * S + s) * D;
+        for (let f = 0; f < dff; f++) {
+          const dv = dff1[outOff + f];
+          dbff1[f] += dv;
+          for (let d = 0; d < D; d++) {
+            dWff1[f * D + d] += dv * cache.ln2.out[inOff + d];
+            dln2_out[inOff + d] += this.Wff1[f * D + d] * dv;
+          }
+        }
+      }
+    }
+
+    // --- Layer Norm 2 backward ---
+    const dx1_from_ln2 = this._layerNormBackward(dln2_out, cache.x1, cache.ln2, this.ln2_g, B, S, D);
+
+    // Accumulate LN2 param grads
+    const dln2_g = dx1_from_ln2.dgamma;
+    const dln2_b = dx1_from_ln2.dbeta;
+
+    // Total dx1
+    const dx1 = new Float64Array(B * S * D);
+    for (let i = 0; i < B * S * D; i++) {
+      dx1[i] = dx1_from_res2[i] + dx1_from_ln2.dx[i];
+    }
+
+    // --- Residual: dx1 flows to demb and dattnProj ---
+    const demb = new Float64Array(B * S * D);
+    const dattnProj = new Float64Array(B * S * D);
+    for (let i = 0; i < B * S * D; i++) {
+      demb[i] = dx1[i];
+      dattnProj[i] = dx1[i];
+    }
+
+    // --- d output projection (attention) ---
+    const dWo = new Float64Array(D * D);
+    const dbo = new Float64Array(D);
+    const dattnOut = new Float64Array(B * S * D);
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const off = (b * S + s) * D;
+        for (let d = 0; d < D; d++) {
+          const dv = dattnProj[off + d];
+          dbo[d] += dv;
+          for (let j = 0; j < D; j++) {
+            dWo[d * D + j] += dv * cache.attnOut[off + j];
+            dattnOut[off + j] += this.Wo[d * D + j] * dv;
+          }
+        }
+      }
+    }
+
+    // --- d attention backward ---
+    const dV = new Float64Array(B * S * D);
+    const dattnW = new Float64Array(B * H * S * S); // gradient on attention weights (post-softmax)
+
+    for (let b = 0; b < B; b++) {
+      for (let h = 0; h < H; h++) {
+        const hOff = h * dk;
+        for (let qi = 0; qi < S; qi++) {
+          // dattnOut -> dV and d(attn_weights)
+          for (let d = 0; d < dk; d++) {
+            const dout = dattnOut[(b * S + qi) * D + hOff + d];
+            for (let ki = 0; ki <= qi; ki++) {
+              const wIdx = (b * H + h) * S * S + qi * S + ki;
+              dV[(b * S + ki) * D + hOff + d] += cache.attnWeights[wIdx] * dout;
+              dattnW[wIdx] += cache.V[(b * S + ki) * D + hOff + d] * dout;
+            }
+          }
+        }
+      }
+    }
+
+    // --- d softmax backward ---
+    // d_score = attn * (d_attn - sum(attn * d_attn))
+    const dScores = new Float64Array(B * H * S * S);
+    for (let b = 0; b < B; b++) {
+      for (let h = 0; h < H; h++) {
+        for (let qi = 0; qi < S; qi++) {
+          let dot = 0;
+          for (let ki = 0; ki <= qi; ki++) {
+            const idx = (b * H + h) * S * S + qi * S + ki;
+            dot += cache.attnWeights[idx] * dattnW[idx];
+          }
+          for (let ki = 0; ki <= qi; ki++) {
+            const idx = (b * H + h) * S * S + qi * S + ki;
+            dScores[idx] = cache.attnWeights[idx] * (dattnW[idx] - dot);
+          }
+        }
+      }
+    }
+
+    // dScores -> dQ, dK
+    const dQ = new Float64Array(B * S * D);
+    const dK = new Float64Array(B * S * D);
+    const scaleAttn = 1.0 / Math.sqrt(dk);
+
+    for (let b = 0; b < B; b++) {
+      for (let h = 0; h < H; h++) {
+        const hOff = h * dk;
+        for (let qi = 0; qi < S; qi++) {
+          for (let ki = 0; ki <= qi; ki++) {
+            const ds = dScores[(b * H + h) * S * S + qi * S + ki] * scaleAttn;
+            const qOff = (b * S + qi) * D + hOff;
+            const kOff = (b * S + ki) * D + hOff;
+            for (let d = 0; d < dk; d++) {
+              dQ[qOff + d] += ds * cache.K[kOff + d];
+              dK[kOff + d] += ds * cache.Q[qOff + d];
+            }
+          }
+        }
+      }
+    }
+
+    // --- d QKV projections ---
+    const dWq = new Float64Array(D * D);
+    const dbq = new Float64Array(D);
+    const dWk = new Float64Array(D * D);
+    const dbk = new Float64Array(D);
+    const dWv = new Float64Array(D * D);
+    const dbv = new Float64Array(D);
+    const dln1_out = new Float64Array(B * S * D);
+
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const off = (b * S + s) * D;
+        for (let d = 0; d < D; d++) {
+          const dq = dQ[off + d], dkv = dK[off + d], dvv = dV[off + d];
+          dbq[d] += dq;
+          dbk[d] += dkv;
+          dbv[d] += dvv;
+          for (let j = 0; j < D; j++) {
+            const x = cache.ln1.out[off + j];
+            dWq[d * D + j] += dq * x;
+            dWk[d * D + j] += dkv * x;
+            dWv[d * D + j] += dvv * x;
+            dln1_out[off + j] += this.Wq[d * D + j] * dq + this.Wk[d * D + j] * dkv + this.Wv[d * D + j] * dvv;
+          }
+        }
+      }
+    }
+
+    // --- Layer Norm 1 backward ---
+    const dln1_back = this._layerNormBackward(dln1_out, cache.emb, cache.ln1, this.ln1_g, B, S, D);
+    const dln1_g = dln1_back.dgamma;
+    const dln1_b = dln1_back.dbeta;
+
+    // Add to demb
+    for (let i = 0; i < B * S * D; i++) {
+      demb[i] += dln1_back.dx[i];
+    }
+
+    // --- d Embedding ---
+    const dWemb = new Float64Array(p * D);
+    const dWpos = new Float64Array(3 * D);
+
+    for (let b = 0; b < B; b++) {
+      const a = cache.tokens[b * S + 0];
+      const bv = cache.tokens[b * S + 1];
+      for (let d = 0; d < D; d++) {
+        dWemb[a * D + d] += demb[(b * S + 0) * D + d];
+        dWpos[0 * D + d] += demb[(b * S + 0) * D + d];
+        dWemb[bv * D + d] += demb[(b * S + 1) * D + d];
+        dWpos[1 * D + d] += demb[(b * S + 1) * D + d];
+        // position 2 has no token embedding, only positional
+        dWpos[2 * D + d] += demb[(b * S + 2) * D + d];
+      }
+    }
+
+    return {
+      dWemb, dWpos,
+      dln1_g, dln1_b, dWq: dWq, dbq, dWk: dWk, dbk, dWv: dWv, dbv, dWo: dWo, dbo,
+      dln2_g, dln2_b, dWff1, dbff1, dWff2, dbff2,
+      dWout, dbout
+    };
+  }
+
+  _layerNormBackward(dout, input, lnCache, gamma, B, S, D) {
+    const dx = new Float64Array(B * S * D);
+    const dgamma = new Float64Array(D);
+    const dbeta = new Float64Array(D);
+
+    for (let b = 0; b < B; b++) {
+      for (let s = 0; s < S; s++) {
+        const off = (b * S + s) * D;
+        const mu = lnCache.mean[b * S + s];
+        const rs = lnCache.rstd[b * S + s];
+
+        // Compute normalized values
+        const xhat = new Float64Array(D);
+        for (let d = 0; d < D; d++) {
+          xhat[d] = (input[off + d] - mu) * rs;
+        }
+
+        // Accumulate dgamma, dbeta
+        for (let d = 0; d < D; d++) {
+          dgamma[d] += dout[off + d] * xhat[d];
+          dbeta[d] += dout[off + d];
+        }
+
+        // dx through layer norm
+        // dxhat = dout * gamma
+        const dxhat = new Float64Array(D);
+        for (let d = 0; d < D; d++) {
+          dxhat[d] = dout[off + d] * gamma[d];
+        }
+
+        // sum of dxhat and sum of dxhat * xhat
+        let sum_dxhat = 0, sum_dxhat_xhat = 0;
+        for (let d = 0; d < D; d++) {
+          sum_dxhat += dxhat[d];
+          sum_dxhat_xhat += dxhat[d] * xhat[d];
+        }
+
+        const invD = 1.0 / D;
+        for (let d = 0; d < D; d++) {
+          dx[off + d] = rs * (dxhat[d] - invD * (sum_dxhat + xhat[d] * sum_dxhat_xhat));
+        }
+      }
+    }
+
+    return { dx, dgamma, dbeta };
+  }
+
+  step(grads, lr, wd) {
+    this.t++;
+    const beta1 = 0.9, beta2 = 0.98, eps = 1e-8;
+    const bc1 = 1 - Math.pow(beta1, this.t);
+    const bc2 = 1 - Math.pow(beta2, this.t);
+    for (const k of this.params) {
+      const param = this[k];
+      const grad = grads['d' + k];
+      const m = this.m[k], v = this.v[k];
+      const isWeight = this.weightParams.has(k);
+      for (let i = 0; i < param.length; i++) {
+        m[i] = beta1 * m[i] + (1 - beta1) * grad[i];
+        v[i] = beta2 * v[i] + (1 - beta2) * grad[i] * grad[i];
+        const mHat = m[i] / bc1;
+        const vHat = v[i] / bc2;
+        const adamUpdate = lr * mHat / (Math.sqrt(vHat) + eps);
+        if (isWeight) {
+          param[i] = param[i] * (1 - lr * wd) - adamUpdate;
+        } else {
+          param[i] -= adamUpdate;
+        }
+      }
+    }
+  }
+}
+
+function makeData(p) {
+  const data = [];
+  for (let a = 0; a < p; a++) {
+    for (let b = 0; b < p; b++) {
+      const x = new Float64Array(2 * p);
+      x[a] = 1;
+      x[p + b] = 1;
+      const y = (a + b) % p;
+      data.push({ x, y });
+    }
+  }
+  return data;
+}
+
+function splitData(data, trainFrac) {
+  shuffle(data);
+  const nTrain = Math.floor(data.length * trainFrac);
+  return {
+    train: data.slice(0, nTrain),
+    test: data.slice(nTrain)
+  };
+}
+`;
+
+// ===== Worker Logic =====
+const workerLogicCode = `
+self.onerror = function(e) { postMessage({ type: 'error', msg: e.message }); };
+
+// ===== Worker: State =====
+let net = null;
+let trainData = [];
+let testData = [];
+let running = false;
+let step = 0;
+let config = null;
+let grokked = false;
+let intervalId = null;
+let lastStatsTime = performance.now();
+let stepsSinceStats = 0;
+// ===== Worker: Training helpers =====
+let BATCH_SIZE = 512;
+let trainIdx = 0;
+
+function getMiniBatch() {
+  const bs = Math.min(BATCH_SIZE, trainData.length);
+  if (trainIdx + bs > trainData.length) {
+    shuffle(trainData);
+    trainIdx = 0;
+  }
+  const batch = trainData.slice(trainIdx, trainIdx + bs);
+  trainIdx += bs;
+  return batch;
+}
+
+const WARMUP_STEPS = 10;
+
+function trainStep() {
+  const batch = getMiniBatch();
+  const X = batch.map(d => d.x);
+  const Y = batch.map(d => d.y);
+  const cache = net.forward(X);
+  const grads = net.backward(X, Y, cache);
+  // LR warmup for first 10 steps (prevents early instability)
+  let lr = config.lr;
+  if (step < WARMUP_STEPS) lr = config.lr * (step + 1) / WARMUP_STEPS;
+  net.step(grads, lr, config.wd);
+}
+
+// Pre-built X/Y arrays for eval — built once in initNetwork, reused every eval
+let trainX = null, trainY = null, testX = null, testY = null;
+let allX = null, allY = null, trainMask = null;
+
+function evaluate() {
+  const trainCache = net.forward(trainX);
+  const testCache = net.forward(testX);
+  return {
+    trainAcc: net.accuracy(trainCache.probs, trainY, trainCache.B),
+    testAcc: net.accuracy(testCache.probs, testY, testCache.B),
+    trainLoss: net.loss(trainCache.probs, trainY, trainCache.B),
+    testLoss: net.loss(testCache.probs, testY, testCache.B)
+  };
+}
+
+function computeHeatmap() {
+  if (!net || !allX) return null;
+  const p = config.p;
+  const n = p * p;
+  const cache = net.forward(allX);
+  const probs = cache.probs;
+  const O = p;
+  const predicted = new Int16Array(n);
+  const confidence = new Uint8Array(n);
+  for (let i = 0; i < n; i++) {
+    let maxP = -1, maxI = 0;
+    for (let o = 0; o < O; o++) {
+      if (probs[i * O + o] > maxP) { maxP = probs[i * O + o]; maxI = o; }
+    }
+    predicted[i] = maxI;
+    confidence[i] = Math.round(maxP * 100);
+  }
+  return { predicted: Array.from(predicted), confidence: Array.from(confidence), trainMask: Array.from(trainMask), actual: allY, p };
+}
+
+function computeFourierSpectrum() {
+  if (!net) return null;
+  const p = config.p;
+  const numFreqs = Math.floor(p / 2);
+  const spectrum = new Float64Array(numFreqs);
+
+  if (config.modelType === 'transformer') {
+    // For transformer: DFT of token embedding rows
+    const d = net.d_model;
+    for (let k = 1; k <= numFreqs; k++) {
+      const w = 2 * Math.PI * k / p;
+      let power = 0;
+      for (let dim = 0; dim < d; dim++) {
+        let cosSum = 0, sinSum = 0;
+        for (let t = 0; t < p; t++) {
+          const val = net.Wemb[t * d + dim];
+          cosSum += val * Math.cos(w * t);
+          sinSum += val * Math.sin(w * t);
+        }
+        power += cosSum * cosSum + sinSum * sinSum;
+      }
+      spectrum[k - 1] = Math.sqrt(power / d);
+    }
+  } else {
+    // For MLP: DFT of each neuron's first-p weights, sum across neurons
+    const H = net.hiddenDim;
+    const I = 2 * p;
+    for (let k = 1; k <= numFreqs; k++) {
+      const w = 2 * Math.PI * k / p;
+      let power = 0;
+      for (let h = 0; h < H; h++) {
+        let cosSum = 0, sinSum = 0;
+        for (let i = 0; i < p; i++) {
+          const val = net.W1[h * I + i];
+          cosSum += val * Math.cos(w * i);
+          sinSum += val * Math.sin(w * i);
+        }
+        power += cosSum * cosSum + sinSum * sinSum;
+      }
+      spectrum[k - 1] = Math.sqrt(power / H);
+    }
+  }
+  return spectrum;
+}
+
+function initNetwork() {
+  BATCH_SIZE = config.modelType === 'transformer' ? 256 : 512;
+  const p = config.p;
+  const trainFrac = config.frac / 100;
+  const allData = makeData(p);
+  const split = splitData(allData, trainFrac);
+  trainData = split.train;
+  testData = split.test;
+  step = 0;
+  grokked = false;
+  lastStatsTime = performance.now();
+  stepsSinceStats = 0;
+
+  if (config.modelType === 'transformer') {
+    net = new GrokTransformer(p, config.hiddenDim);
+    // For transformer, data uses {a, b} objects instead of one-hot
+    trainX = trainData.map(d => {
+      const [a, b] = decodeOneHot(d.x, p);
+      return { a, b };
+    });
+    trainY = trainData.map(d => d.y);
+    testX = testData.map(d => {
+      const [a, b] = decodeOneHot(d.x, p);
+      return { a, b };
+    });
+    testY = testData.map(d => d.y);
+    // Rebuild trainData for mini-batching with {a,b} format
+    trainData = trainX.map((x, i) => ({ x, y: trainY[i] }));
+  } else {
+    net = new GrokNet(2 * p, config.hiddenDim, p);
+    trainX = trainData.map(d => d.x);
+    trainY = trainData.map(d => d.y);
+    testX = testData.map(d => d.x);
+    testY = testData.map(d => d.y);
+  }
+
+  // Pre-build full grid for heatmap (all p*p pairs in order)
+  allX = [];
+  allY = [];
+  trainMask = new Uint8Array(p * p);
+  for (let a = 0; a < p; a++) {
+    for (let b = 0; b < p; b++) {
+      if (config.modelType === 'transformer') {
+        allX.push({ a, b });
+      } else {
+        const x = new Float64Array(2 * p);
+        x[a] = 1;
+        x[p + b] = 1;
+        allX.push(x);
+      }
+      allY.push((a + b) % p);
+    }
+  }
+  // Mark training pairs (use original split data before we reassigned trainData)
+  for (const d of split.train) {
+    const [a, b] = decodeOneHot(d.x, p);
+    trainMask[a * p + b] = 1;
+  }
+}
+
+// ===== Worker: Training loop =====
+function startLoop() {
+  if (intervalId) return;
+  lastStatsTime = performance.now();
+  stepsSinceStats = 0;
+  tick();
+}
+
+function tick() {
+    if (!running) return;
+    try {
+      // Run multiple steps per tick for responsiveness
+      for (let i = 0; i < config.spf; i++) {
+        trainStep();
+        step++;
+        stepsSinceStats++;
+      }
+
+      // Time-based eval: every 500ms
+      const elapsed = performance.now() - lastStatsTime;
+      if (elapsed > 500) {
+        const ev = evaluate();
+        const speed = (stepsSinceStats / elapsed) * 1000;
+        lastStatsTime = performance.now();
+        stepsSinceStats = 0;
+
+        // Compute sum of squared weights
+        let wNorm = 0;
+        for (const k of net.params) {
+          const arr = net[k];
+          for (let i = 0; i < arr.length; i++) wNorm += arr[i] * arr[i];
+        }
+
+        postMessage({ type: 'stats', step, trainAcc: ev.trainAcc, testAcc: ev.testAcc, trainLoss: ev.trainLoss, testLoss: ev.testLoss, speed, weightNorm: wNorm });
+
+        const heatmap = computeHeatmap();
+        if (heatmap) postMessage({ type: 'heatmap', ...heatmap });
+
+        const spectrum = computeFourierSpectrum();
+        if (spectrum) postMessage({ type: 'fourier', spectrum: Array.from(spectrum), p: config.p });
+
+        // Send W1 weights for neuron visualization (first p weights per neuron = response to input a)
+        if (net) {
+          if (config.modelType === 'transformer') {
+            // Send token embeddings for visualization
+            const p = config.p;
+            const d = net.d_model;
+            const embs = [];
+            for (let t = 0; t < p; t++) {
+              const vec = [];
+              for (let j = 0; j < d; j++) vec.push(net.Wemb[t * d + j]);
+              embs.push(vec);
+            }
+            postMessage({ type: 'embeddings', embeddings: embs, p });
+          } else {
+            const H = net.hiddenDim, p = config.p;
+            const neurons = [];
+            for (let h = 0; h < H; h++) {
+              const w = new Float64Array(p);
+              for (let i = 0; i < p; i++) w[i] = net.W1[h * (2 * p) + i];
+              neurons.push(Array.from(w));
+            }
+            postMessage({ type: 'neurons', neurons, p });
+            // Also send neuron weights as "embeddings" for PCA plot
+            postMessage({ type: 'embeddings', embeddings: neurons, p, label: 'neurons' });
+          }
+        }
+
+        if (!grokked && ev.testAcc > 0.9 && ev.trainAcc > 0.95) {
+          grokked = true;
+          postMessage({ type: 'grokked' });
+        }
+        // Stop when test accuracy hits 100%
+        if (ev.testAcc >= 0.999) {
+          running = false;
+          postMessage({ type: 'stopped' });
+          return;
+        }
+      }
+    } catch (err) {
+      postMessage({ type: 'error', msg: err.message + ' at ' + err.stack });
+      return;
+    }
+    intervalId = setTimeout(tick, 0);
+}
+
+function stopLoop() {
+  if (intervalId) { clearTimeout(intervalId); intervalId = null; }
+}
+
+// ===== Worker: Message handler =====
+self.onmessage = function(e) {
+  const msg = e.data;
+  switch (msg.type) {
+    case 'init': {
+      config = { ...msg.config };
+      initNetwork();
+      const _p = config.p;
+      postMessage({ type: 'ready', trainSet: Array.from(trainMask), p: _p });
+      break;
+    }
+    case 'pause':
+      running = false;
+      stopLoop();
+      break;
+    case 'resume':
+      running = true;
+      startLoop();
+      break;
+    case 'reset': {
+      stopLoop();
+      running = false;
+      config = { ...msg.config };
+      initNetwork();
+      const _p2 = config.p;
+      postMessage({ type: 'ready', trainSet: Array.from(trainMask), p: _p2 });
+      break;
+    }
+    case 'config':
+      if (config) {
+        if (msg.lr !== undefined) config.lr = msg.lr;
+        if (msg.wd !== undefined) config.wd = msg.wd;
+        if (msg.spf !== undefined) config.spf = msg.spf;
+      }
+      break;
+    case 'inference':
+      if (!net) break;
+      const p = config.p;
+      const a = Math.max(0, Math.min(p - 1, msg.a || 0));
+      const b = Math.max(0, Math.min(p - 1, msg.b || 0));
+      let x;
+      if (config.modelType === 'transformer') {
+        x = { a, b };
+      } else {
+        x = new Float64Array(2 * p);
+        x[a] = 1;
+        x[p + b] = 1;
+      }
+      const cache = net.forward([x]);
+      const probs = cache.probs;
+      let maxP = -1, predicted = 0;
+      for (let o = 0; o < p; o++) {
+        if (probs[o] > maxP) { maxP = probs[o]; predicted = o; }
+      }
+      const actual = (a + b) % p;
+      postMessage({ type: 'inferenceResult', a, b, predicted, actual, isCorrect: predicted === actual, confidence: (maxP * 100).toFixed(1) });
+      break;
+  }
+};
+`;
+
+// ===== Inline Web Worker code =====
+const workerCode = nnCode + '\n' + workerLogicCode;
+
+// ===== Chart state =====
+let accChart = null;
+let lossChart = null;
+
+// ===== App State =====
+const state = {
+  p: 97, frac: 50, hiddenDim: 64, lr: 0.01, wd: 300, spf: 50, modelType: 'mlp',
+  running: false, step: 0, grokked: false, netP: 97,
+  trainAcc: 0, testAcc: 0, trainLoss: 0, testLoss: 0, speed: 0,
+  inferA: 7, inferB: 13, showResult: false, inferResult: '',
+  workerReady: false
+};
+
+// Chart history (plain arrays)
+let accHistorySteps = [], accHistoryTrain = [], accHistoryTest = [];
+let lossHistorySteps = [], lossHistoryTrain = [], lossHistoryTest = [];
+let weightNormHistory = [];
+let lastChartUpdate = 0;
+let worker = null;
+
+// DOM references
+const $ = id => document.getElementById(id);
+
+// ===== UI Update Functions =====
+
+function updateParamsLocked() {
+  const locked = state.running || state.step > 0;
+  $('inputP').disabled = locked;
+  $('inputFrac').disabled = locked;
+  $('inputHidden').disabled = locked;
+  $('btnModelMLP').disabled = locked;
+  $('btnModelTransformer').disabled = locked;
+  $('btnStart').disabled = !isPrime(state.p) && state.step === 0;
+  $('primeWarn').style.display = isPrime(state.p) ? 'none' : '';
+}
+
+function updateStats() {
+  $('statStep').textContent = state.step.toLocaleString();
+  $('statSpeed').textContent = Math.round(state.speed).toLocaleString();
+  $('statTrainAcc').textContent = (state.trainAcc * 100).toFixed(1) + '%';
+  $('statTestAcc').textContent = (state.testAcc * 100).toFixed(1) + '%';
+}
+
+function updatePhaseBadge() {
+  const badge = $('phaseBadge');
+  let text, cls;
+  if (!state.running && state.step === 0) {
+    text = 'idle'; cls = 'phase-badge phase-idle';
+  } else if (state.testAcc > 0.9 && state.trainAcc > 0.95) {
+    text = 'grokked'; cls = 'phase-badge phase-grokking';
+  } else if (state.trainAcc > 0.8) {
+    text = 'memorizing'; cls = 'phase-badge phase-memorizing';
+  } else {
+    text = 'training'; cls = 'phase-badge phase-idle';
+  }
+  badge.textContent = text;
+  badge.className = cls;
+}
+
+function updateProgress() {
+  $('progressFill').style.width = Math.min(100, state.testAcc * 100) + '%';
+  $('progressFill').classList.toggle('grokked', state.testAcc > 0.9);
+  $('phaseMemorizing').classList.toggle('active', state.trainAcc > 0.5);
+  $('phaseGeneralizing').classList.toggle('active', state.testAcc > 0.5);
+  $('phaseGrokked').classList.toggle('active', state.testAcc > 0.9);
+}
+
+function updateStartButton() {
+  if (state.running) {
+    $('btnStart').textContent = 'Pause';
+    $('btnStart').classList.add('running');
+  } else {
+    $('btnStart').textContent = 'Resume';
+    $('btnStart').classList.remove('running');
+  }
+}
+
+function updateNetInfo() {
+  const p = state.netP || state.p;
+  if (!state.workerReady) {
+    $('netInfo').textContent = 'Network: not initialized';
+  } else if (state.modelType === 'transformer') {
+    $('netInfo').textContent = 'Transformer: d_model=' + state.hiddenDim + ', 4 heads, 1 layer, FFN=' + (4 * state.hiddenDim) + ' (p=' + p + ')';
+  } else {
+    $('netInfo').textContent = 'Network: ' + (2 * p) + ' inputs, ' + state.hiddenDim + ' hidden, ' + p + ' outputs (p=' + p + ')';
+  }
+}
+
+function updateInferLimits() {
+  const p = state.netP || state.p;
+  $('inferA').max = p - 1;
+  $('inferB').max = p - 1;
+  $('inferP').textContent = p;
+  if (parseInt($('inferA').value) >= p) $('inferA').value = 0;
+  if (parseInt($('inferB').value) >= p) $('inferB').value = 0;
+}
+
+let heatmapTrainMask = null;
+let heatmapScale = 1;
+let heatmapP = 0;
+
+function initHeatmap(trainMask, p) {
+  heatmapTrainMask = trainMask;
+  heatmapP = p;
+  const canvas = $('heatmapCanvas');
+  heatmapScale = Math.max(2, Math.min(12, Math.floor(300 / p)));
+  canvas.width = p * heatmapScale;
+  canvas.height = p * heatmapScale;
+  canvas.style.width = (p * heatmapScale) + 'px';
+  canvas.style.height = (p * heatmapScale) + 'px';
+  const ctx = canvas.getContext('2d');
+  // Draw initial state: train=blue outline, test=dark
+  for (let a = 0; a < p; a++) {
+    for (let b = 0; b < p; b++) {
+      const x = b * heatmapScale, y = a * heatmapScale;
+      ctx.fillStyle = '#1a1c24';
+      ctx.fillRect(x, y, heatmapScale, heatmapScale);
+      if (trainMask[a * p + b]) {
+        ctx.fillStyle = 'rgba(255,255,255,0.5)';
+        const dotR = Math.max(1, heatmapScale / 5);
+        ctx.beginPath();
+        ctx.arc(x + heatmapScale / 2, y + heatmapScale / 2, dotR, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+  }
+  const trainCount = trainMask.reduce((s, v) => s + v, 0);
+  $('heatmapInfo').textContent = trainCount + ' train, ' + (p * p - trainCount) + ' test — p=' + p;
+  $('heatmapStatus').textContent = '— before training';
+
+  // Hover tooltip
+  canvas.onmousemove = function(e) {
+    const rect = canvas.getBoundingClientRect();
+    const b = Math.floor((e.clientX - rect.left) / heatmapScale);
+    const a = Math.floor((e.clientY - rect.top) / heatmapScale);
+    if (a >= 0 && a < p && b >= 0 && b < p) {
+      const tip = $('heatmapTooltip');
+      tip.style.display = 'block';
+      tip.style.left = (e.clientX - rect.left + 12) + 'px';
+      tip.style.top = (e.clientY - rect.top - 10) + 'px';
+      const isTrain = heatmapTrainMask[a * p + b];
+      tip.innerHTML = a + ' + ' + b + ' mod ' + p + ' = ' + ((a + b) % p) + '<br>' + (isTrain ? 'training' : 'test (unseen)');
+    }
+  };
+  canvas.onmouseleave = function() { $('heatmapTooltip').style.display = 'none'; };
+}
+
+function renderHeatmap(data) {
+  const canvas = $('heatmapCanvas');
+  const ctx = canvas.getContext('2d');
+  const p = data.p;
+  const s = heatmapScale;
+  let trainCorrect = 0, trainTotal = 0, testCorrect = 0, testTotal = 0;
+
+  for (let a = 0; a < p; a++) {
+    for (let b = 0; b < p; b++) {
+      const idx = a * p + b;
+      const x = b * s, y = a * s;
+      const correct = data.predicted[idx] === data.actual[idx];
+      const conf = data.confidence[idx] / 100;
+      const isTrain = data.trainMask[idx];
+
+      if (isTrain) trainTotal++; else testTotal++;
+      if (correct && isTrain) trainCorrect++;
+      if (correct && !isTrain) testCorrect++;
+
+      // Color by correctness + confidence
+      if (correct) {
+        const g = Math.round(80 + conf * 131); // 80-211
+        ctx.fillStyle = 'rgb(40,' + g + ',60)';
+      } else {
+        const r = Math.round(80 + conf * 144); // 80-224
+        ctx.fillStyle = 'rgb(' + r + ',50,40)';
+      }
+      ctx.fillRect(x, y, s, s);
+
+      // White dot for training data — visible at any cell size
+      if (isTrain) {
+        ctx.fillStyle = 'rgba(255,255,255,0.7)';
+        const dotR = Math.max(1, s / 5);
+        ctx.beginPath();
+        ctx.arc(x + s / 2, y + s / 2, dotR, 0, 2 * Math.PI);
+        ctx.fill();
+      }
+    }
+  }
+
+  $('heatmapInfo').textContent = 'train: ' + trainCorrect + '/' + trainTotal + ' — test: ' + testCorrect + '/' + testTotal;
+  if (testCorrect === testTotal && testTotal > 0) {
+    $('heatmapStatus').textContent = '— fully generalized';
+  } else if (trainCorrect > trainTotal * 0.8 && testCorrect < testTotal * 0.3) {
+    $('heatmapStatus').textContent = '— memorizing (train only)';
+  } else if (testCorrect > testTotal * 0.5) {
+    $('heatmapStatus').textContent = '— generalizing';
+  } else {
+    $('heatmapStatus').textContent = '— training';
+  }
+}
+
+// ===== Charts =====
+
+function initCharts() {
+  const chartColors = {
+    train: '#5b6eea',
+    test: '#68d391',
+    trainLoss: '#e07a5f',
+    testLoss: '#f2cc8f'
+  };
+  const commonOpts = {
+    responsive: true,
+    maintainAspectRatio: false,
+    animation: false,
+    elements: { point: { radius: 0 }, line: { borderWidth: 2 } },
+    scales: {
+      x: {
+        title: { display: true, text: 'Training Step', color: '#6b7080' },
+        ticks: { color: '#6b7080', maxTicksLimit: 8 },
+        grid: { color: '#1e2028' }
+      },
+      y: {
+        ticks: { color: '#6b7080' },
+        grid: { color: '#1e2028' }
+      }
+    },
+    plugins: { legend: { align: 'start', labels: { color: '#9ca0b0', usePointStyle: true, pointStyle: 'line', padding: 20, boxWidth: 20, font: { size: 12 } } } }
+  };
+
+  const accCtx = document.getElementById('chartAcc').getContext('2d');
+  accChart = new Chart(accCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Train Accuracy (seen data)', data: [], borderColor: chartColors.train, fill: false },
+        { label: 'Test Accuracy (unseen data)', data: [], borderColor: chartColors.test, fill: false }
+      ]
+    },
+    options: {
+      ...commonOpts,
+      scales: {
+        ...commonOpts.scales,
+        y: { ...commonOpts.scales.y, min: 0, max: 1, title: { display: true, text: 'Accuracy (1.0 = perfect)', color: '#6b7080' } }
+      }
+    }
+  });
+
+  const lossCtx = document.getElementById('chartLoss').getContext('2d');
+  lossChart = new Chart(lossCtx, {
+    type: 'line',
+    data: {
+      labels: [],
+      datasets: [
+        { label: 'Train Loss (seen data)', data: [], borderColor: chartColors.trainLoss, fill: false, yAxisID: 'y' },
+        { label: 'Test Loss (unseen data)', data: [], borderColor: chartColors.testLoss, fill: false, yAxisID: 'y' },
+        { label: 'Weight norm (sum w\u00B2)', data: [], borderColor: '#9b59b6', fill: false, yAxisID: 'y1' }
+      ]
+    },
+    options: {
+      ...commonOpts,
+      scales: {
+        ...commonOpts.scales,
+        y: { ...commonOpts.scales.y, title: { display: true, text: 'Loss (lower = better)', color: '#6b7080' } },
+        y1: { position: 'right', ticks: { color: '#9b59b6' }, grid: { drawOnChartArea: false }, title: { display: true, text: 'Weight norm', color: '#9b59b6' } }
+      }
+    }
+  });
+}
+
+let initialNeurons = null;
+let neuronTopIndices = null;
+
+function renderNeurons(neurons, p) {
+  const NUM_SHOW = 6;
+  const SIZE = 100;
+
+  // On first call, snapshot initial weights and render "before"
+  if (!initialNeurons) {
+    initialNeurons = neurons.map(w => [...w]);
+    // Pick top neurons by magnitude — same indices used for both before/after
+    const scored = neurons.map((w, idx) => ({ idx, mag: w.reduce((s, v) => s + v * v, 0) }));
+    scored.sort((a, b) => b.mag - a.mag);
+    neuronTopIndices = scored.slice(0, NUM_SHOW).map(s => s.idx);
+    drawPolarPlots($('neuronGridBefore'), initialNeurons, neuronTopIndices, p, SIZE);
+  }
+
+  // Update step counter
+  $('neuronStep').textContent = state.step.toLocaleString();
+
+  // Use the SAME neuron indices as the "before" snapshot for direct comparison
+  drawPolarPlots($('neuronGrid'), neurons, neuronTopIndices, p, SIZE);
+}
+
+function drawPolarPlots(container, neurons, indices, p, SIZE) {
+  const NUM_SHOW = indices.length;
+
+  // Reuse or create canvases
+  while (container.children.length < NUM_SHOW) {
+    const c = document.createElement('canvas');
+    c.width = SIZE;
+    c.height = SIZE;
+    c.style.width = SIZE + 'px';
+    c.style.height = SIZE + 'px';
+    c.style.borderRadius = '50%';
+    c.style.background = '#12141a';
+    container.appendChild(c);
+  }
+
+  for (let i = 0; i < NUM_SHOW; i++) {
+    const canvas = container.children[i];
+    const ctx = canvas.getContext('2d');
+    const w = neurons[indices[i]];
+    const cx = SIZE / 2, cy = SIZE / 2, r = SIZE / 2 - 8;
+
+    ctx.clearRect(0, 0, SIZE, SIZE);
+
+    // Draw circle outline
+    ctx.beginPath();
+    ctx.arc(cx, cy, r, 0, 2 * Math.PI);
+    ctx.strokeStyle = '#2a2d38';
+    ctx.lineWidth = 1;
+    ctx.stroke();
+
+    // Find max weight magnitude for scaling
+    let maxW = 0;
+    for (let j = 0; j < p; j++) maxW = Math.max(maxW, Math.abs(w[j]));
+    if (maxW === 0) maxW = 1;
+
+    // Draw weight values as a filled polar plot
+    ctx.beginPath();
+    for (let j = 0; j <= p; j++) {
+      const angle = (j % p) / p * 2 * Math.PI - Math.PI / 2;
+      const val = w[j % p] / maxW; // normalized to [-1, 1]
+      const dist = r * (0.3 + 0.7 * Math.abs(val)); // min 30% radius
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist;
+      if (j === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+    ctx.fillStyle = 'rgba(91, 110, 234, 0.15)';
+    ctx.fill();
+    ctx.strokeStyle = '#5b6eea';
+    ctx.lineWidth = 1.5;
+    ctx.stroke();
+
+    // Draw positive/negative as color
+    ctx.beginPath();
+    for (let j = 0; j <= p; j++) {
+      const angle = (j % p) / p * 2 * Math.PI - Math.PI / 2;
+      const val = w[j % p] / maxW;
+      const dist = r * (0.3 + 0.7 * Math.abs(val));
+      const px = cx + Math.cos(angle) * dist;
+      const py = cy + Math.sin(angle) * dist;
+      if (j === 0) ctx.moveTo(px, py);
+      else ctx.lineTo(px, py);
+    }
+    ctx.closePath();
+
+    // Neuron index label
+    ctx.fillStyle = '#6b7080';
+    ctx.font = '9px Inter, sans-serif';
+    ctx.textAlign = 'center';
+    ctx.fillText('n' + indices[i], cx, SIZE - 2);
+  }
+}
+
+// Simple 2D PCA: project high-dim vectors to top-2 principal components
+function pca2d(vecs) {
+  const n = vecs.length, d = vecs[0].length;
+  // Center
+  const mean = new Float64Array(d);
+  for (const v of vecs) for (let j = 0; j < d; j++) mean[j] += v[j] / n;
+  const centered = vecs.map(v => v.map((x, j) => x - mean[j]));
+  // Power iteration for top-2 eigenvectors of covariance
+  function topEigenvector(mat, deflate) {
+    let vec = new Float64Array(d);
+    for (let j = 0; j < d; j++) vec[j] = Math.random() - 0.5;
+    for (let iter = 0; iter < 50; iter++) {
+      const nv = new Float64Array(d);
+      for (const row of mat) {
+        let dot = 0;
+        for (let j = 0; j < d; j++) dot += row[j] * vec[j];
+        for (let j = 0; j < d; j++) nv[j] += dot * row[j];
+      }
+      let norm = 0;
+      for (let j = 0; j < d; j++) norm += nv[j] * nv[j];
+      norm = Math.sqrt(norm) || 1;
+      for (let j = 0; j < d; j++) vec[j] = nv[j] / norm;
+    }
+    return vec;
+  }
+  const pc1 = topEigenvector(centered);
+  // Deflate: subtract projection onto pc1
+  const deflated = centered.map(v => {
+    let dot = 0;
+    for (let j = 0; j < d; j++) dot += v[j] * pc1[j];
+    return v.map((x, j) => x - dot * pc1[j]);
+  });
+  const pc2 = topEigenvector(deflated);
+  // Project
+  return centered.map(v => {
+    let x = 0, y = 0;
+    for (let j = 0; j < d; j++) { x += v[j] * pc1[j]; y += v[j] * pc2[j]; }
+    return [x, y];
+  });
+}
+
+let initialEmbeddings = null;
+
+function renderEmbeddings(embeddings, p) {
+  if (!initialEmbeddings) {
+    initialEmbeddings = embeddings.map(v => [...v]);
+    drawEmbeddingPlot($('embBefore'), initialEmbeddings, p);
+  }
+  $('embStep').textContent = state.step.toLocaleString();
+  drawEmbeddingPlot($('embNow'), embeddings, p);
+}
+
+function drawEmbeddingPlot(canvas, embeddings, p) {
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width, H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const pts = pca2d(embeddings);
+
+  // Find bounds
+  let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
+  for (const [x, y] of pts) {
+    if (x < minX) minX = x; if (x > maxX) maxX = x;
+    if (y < minY) minY = y; if (y > maxY) maxY = y;
+  }
+  const rangeX = maxX - minX || 1, rangeY = maxY - minY || 1;
+  const pad = 15;
+
+  // Draw points colored by token value (hue = token/p * 360)
+  for (let i = 0; i < p; i++) {
+    const px = pad + (pts[i][0] - minX) / rangeX * (W - 2 * pad);
+    const py = pad + (pts[i][1] - minY) / rangeY * (H - 2 * pad);
+    const hue = (i / p) * 360;
+    ctx.beginPath();
+    ctx.arc(px, py, 3, 0, 2 * Math.PI);
+    ctx.fillStyle = 'hsl(' + hue + ', 70%, 60%)';
+    ctx.fill();
+  }
+}
+
+function renderFourier(spectrum, p) {
+  const canvas = $('fourierCanvas');
+  const ctx = canvas.getContext('2d');
+  const W = canvas.width = canvas.clientWidth;
+  const H = canvas.height;
+  ctx.clearRect(0, 0, W, H);
+
+  const n = spectrum.length;
+  const barW = Math.max(2, (W - 20) / n);
+  const maxVal = Math.max(...spectrum) || 1;
+  const pad = 10;
+
+  for (let i = 0; i < n; i++) {
+    const barH = (spectrum[i] / maxVal) * (H - 2 * pad);
+    const x = pad + i * barW;
+    const y = H - pad - barH;
+    const intensity = spectrum[i] / maxVal;
+    ctx.fillStyle = intensity > 0.5 ? '#5b6eea' : '#2a2d38';
+    ctx.fillRect(x, y, Math.max(1, barW - 1), barH);
+  }
+
+  ctx.fillStyle = '#6b7080';
+  ctx.font = '10px Inter, sans-serif';
+  ctx.textAlign = 'left';
+  ctx.fillText('k=1', pad, H - 1);
+  ctx.textAlign = 'right';
+  ctx.fillText('k=' + n, W - pad, H - 1);
+}
+
+function updateCharts() {
+  const now = performance.now();
+  if (now - lastChartUpdate < 500) return;
+  lastChartUpdate = now;
+
+  accChart.data.labels = [...accHistorySteps];
+  accChart.data.datasets[0].data = [...accHistoryTrain];
+  accChart.data.datasets[1].data = [...accHistoryTest];
+  accChart.update();
+
+  lossChart.data.labels = [...lossHistorySteps];
+  lossChart.data.datasets[0].data = [...lossHistoryTrain];
+  lossChart.data.datasets[1].data = [...lossHistoryTest];
+  lossChart.data.datasets[2].data = [...weightNormHistory];
+  lossChart.update();
+}
+
+// ===== Worker =====
+
+function getConfig() {
+  return { p: state.p, frac: state.frac, hiddenDim: state.hiddenDim, lr: state.lr, wd: state.wd / 1000, spf: state.spf, modelType: state.modelType };
+}
+
+function createWorker() {
+  if (worker) { worker.terminate(); }
+  worker = new Worker(URL.createObjectURL(new Blob([workerCode], { type: 'application/javascript' })));
+  worker.onmessage = (e) => handleWorkerMessage(e.data);
+  worker.onerror = (e) => console.error('Worker error:', e.message, e.filename, e.lineno);
+}
+
+function sendConfig() {
+  if (worker) {
+    worker.postMessage({ type: 'config', lr: state.lr, wd: state.wd / 1000, spf: state.spf });
+  }
+}
+
+function handleWorkerMessage(msg) {
+  switch (msg.type) {
+    case 'stats':
+      state.step = msg.step;
+      state.trainAcc = msg.trainAcc;
+      state.testAcc = msg.testAcc;
+      state.trainLoss = msg.trainLoss;
+      state.testLoss = msg.testLoss;
+      state.speed = msg.speed;
+      // Push to history arrays
+      accHistorySteps.push(msg.step);
+      accHistoryTrain.push(msg.trainAcc);
+      accHistoryTest.push(msg.testAcc);
+      lossHistorySteps.push(msg.step);
+      lossHistoryTrain.push(msg.trainLoss);
+      lossHistoryTest.push(msg.testLoss);
+      weightNormHistory.push(msg.weightNorm);
+      // Downsample if needed
+      const maxPoints = 500;
+      if (accHistorySteps.length > maxPoints) {
+        const keep = Math.floor(maxPoints / 2);
+        const stride = Math.floor(accHistorySteps.length / keep);
+        const downsample = (arr) => {
+          const newArr = [];
+          for (let i = 0; i < arr.length; i += stride) newArr.push(arr[i]);
+          const last = arr[arr.length - 1];
+          if (newArr[newArr.length - 1] !== last) newArr.push(last);
+          return newArr;
+        };
+        accHistorySteps = downsample(accHistorySteps);
+        accHistoryTrain = downsample(accHistoryTrain);
+        accHistoryTest = downsample(accHistoryTest);
+        lossHistorySteps = downsample(lossHistorySteps);
+        lossHistoryTrain = downsample(lossHistoryTrain);
+        lossHistoryTest = downsample(lossHistoryTest);
+        weightNormHistory = downsample(weightNormHistory);
+      }
+      updateStats();
+      updatePhaseBadge();
+      updateProgress();
+      updateCharts();
+      break;
+    case 'heatmap':
+      renderHeatmap(msg);
+      break;
+    case 'fourier':
+      renderFourier(msg.spectrum, msg.p);
+      break;
+    case 'neurons':
+      renderNeurons(msg.neurons, msg.p);
+      break;
+    case 'embeddings':
+      renderEmbeddings(msg.embeddings, msg.p);
+      break;
+    case 'grokked':
+      state.grokked = true;
+      // Grokking detected — heatmap status handles the display
+      break;
+    case 'stopped':
+      state.running = false;
+      updateStartButton();
+      updateParamsLocked();
+      break;
+    case 'inferenceResult': {
+      const m = msg;
+      const conf = m.confidence;
+      state.showResult = true;
+      state.inferResult = '<span class="formula">' + m.a + ' + ' + m.b + ' mod ' + state.netP + '</span><br>'
+        + 'Network says: <strong>' + m.predicted + '</strong> <span class="' + (m.isCorrect ? 'correct' : 'wrong') + '">' + (m.isCorrect ? '\u2713 Correct' : '\u2717 Wrong (actual: ' + m.actual + ')') + '</span><br>'
+        + '<span class="confidence">Confidence: ' + conf + '%</span>';
+      $('inferResult').innerHTML = state.inferResult;
+      $('inferResult').style.display = '';
+      break;
+    }
+    case 'ready':
+      state.workerReady = true;
+      updateNetInfo();
+      if (msg.trainSet) initHeatmap(msg.trainSet, msg.p);
+      break;
+    case 'error':
+      console.error('Worker internal error:', msg.msg);
+      break;
+  }
+}
+
+// ===== Actions =====
+
+function toggleTraining() {
+  state.running = !state.running;
+  worker.postMessage({ type: state.running ? 'resume' : 'pause' });
+  updateStartButton();
+  updateParamsLocked();
+  updatePhaseBadge();
+}
+
+function resetAll() {
+  $('heroStart').style.display = '';
+  $('btnStart').style.display = 'none';
+  initialNeurons = null;
+  neuronTopIndices = null;
+  initialEmbeddings = null;
+  $('neuronGridBefore').innerHTML = '';
+  $('neuronGrid').innerHTML = '';
+  $('neuronsPanel').style.display = state.modelType === 'transformer' ? 'none' : '';
+  // Update PCA panel description based on model type
+  if (state.modelType === 'transformer') {
+    $('embLabel').textContent = '— token embedding space (PCA)';
+    $('embDesc').textContent = 'each dot = one token (0 to p-1). projected to 2D via PCA. if the model discovers the circular group structure, tokens should arrange in a circle. color = token value.';
+  } else {
+    $('embLabel').textContent = '— neuron weight space (PCA)';
+    $('embDesc').textContent = 'each dot = one hidden neuron\'s weight vector (response to input a), projected to 2D. if neurons learn Fourier features, similar-frequency neurons should cluster. color = neuron index.';
+  }
+  state.running = false;
+  state.step = 0;
+  state.grokked = false;
+  state.trainAcc = 0;
+  state.testAcc = 0;
+  state.trainLoss = 0;
+  state.testLoss = 0;
+  state.speed = 0;
+  state.showResult = false;
+  state.inferResult = '';
+  state.netP = state.p;
+  state.workerReady = false;
+
+  // Clear chart history
+  accHistorySteps = [];
+  accHistoryTrain = [];
+  accHistoryTest = [];
+  lossHistorySteps = [];
+  lossHistoryTrain = [];
+  lossHistoryTest = [];
+  weightNormHistory = [];
+
+  if (accChart) {
+    accChart.data.labels = [];
+    accChart.data.datasets[0].data = [];
+    accChart.data.datasets[1].data = [];
+    accChart.update();
+  }
+  if (lossChart) {
+    lossChart.data.labels = [];
+    lossChart.data.datasets[0].data = [];
+    lossChart.data.datasets[1].data = [];
+    lossChart.data.datasets[2].data = [];
+    lossChart.update();
+  }
+
+  // Clamp inference inputs
+  if (state.inferA >= state.p) { state.inferA = 0; $('inferA').value = 0; }
+  if (state.inferB >= state.p) { state.inferB = 0; $('inferB').value = 0; }
+
+  // Update UI
+  updateStats();
+  updateStartButton();
+  updateParamsLocked();
+  updatePhaseBadge();
+  updateProgress();
+  updateInferLimits();
+  updateNetInfo();
+  $('inferResult').style.display = 'none';
+
+  worker.postMessage({ type: 'reset', config: getConfig() });
+}
+
+function runInference() {
+  if (!state.workerReady) {
+    state.showResult = true;
+    state.inferResult = 'Press <strong>Start</strong> to create and train a network first.';
+    $('inferResult').innerHTML = state.inferResult;
+    $('inferResult').style.display = '';
+    return;
+  }
+  const p = state.netP;
+  const a = Math.max(0, Math.min(p - 1, state.inferA || 0));
+  const b = Math.max(0, Math.min(p - 1, state.inferB || 0));
+  state.inferA = a;
+  state.inferB = b;
+  $('inferA').value = a;
+  $('inferB').value = b;
+  worker.postMessage({ type: 'inference', a, b });
+}
+
+function randomInference() {
+  const p = state.netP || state.p;
+  state.inferA = Math.floor(Math.random() * p);
+  state.inferB = Math.floor(Math.random() * p);
+  $('inferA').value = state.inferA;
+  $('inferB').value = state.inferB;
+  runInference();
+}
+
+function resetAndStart() {
+  state.netP = state.p;
+  worker.postMessage({ type: 'init', config: getConfig() });
+}
+
+// ===== Initialize =====
+
+function init() {
+  // Read URL params
+  const params = new URLSearchParams(window.location.search);
+  if (params.has('p')) state.p = parseInt(params.get('p')) || state.p;
+  if (params.has('frac')) state.frac = parseInt(params.get('frac')) || state.frac;
+  if (params.has('hidden')) state.hiddenDim = parseInt(params.get('hidden')) || state.hiddenDim;
+  if (params.has('lr')) state.lr = parseFloat(params.get('lr')) || state.lr;
+  if (params.has('wd')) state.wd = parseInt(params.get('wd')) || state.wd;
+  if (params.has('spf')) state.spf = parseInt(params.get('spf')) || state.spf;
+  if (params.has('model') && params.get('model') === 'transformer') {
+    state.modelType = 'transformer';
+    $('btnModelTransformer').style.background = '#5b6eea';
+    $('btnModelTransformer').style.color = '#fff';
+    $('btnModelMLP').style.background = '#2a2d38';
+    $('btnModelMLP').style.color = '#b0b4c8';
+    $('hidHint').textContent = 'Transformer model dimension (d_model).';
+    $('neuronsPanel').style.display = 'none';
+    $('embLabel').textContent = '— token embedding space (PCA)';
+    $('embDesc').textContent = 'each dot = one token (0 to p-1). projected to 2D via PCA. if the model discovers the circular group structure, tokens should arrange in a circle. color = token value.';
+  }
+  state.netP = state.p;
+
+  // Set initial input values from state
+  $('inputP').value = state.p;
+  $('inputFrac').value = state.frac;
+  $('inputHidden').value = state.hiddenDim;
+  $('inputLR').value = state.lr;
+  $('inputWD').value = state.wd;
+  $('inputSPF').value = state.spf;
+  $('inferA').value = state.inferA;
+  $('inferB').value = state.inferB;
+
+  // Set initial display values from state
+  $('pVal').textContent = state.p;
+  $('fracVal').textContent = state.frac + '%';
+  $('hidVal').textContent = state.hiddenDim;
+  $('lrVal').textContent = state.lr;
+  $('wdVal').textContent = (state.wd / 1000).toFixed(3);
+  $('spfVal').textContent = state.spf;
+
+  // Bind input events
+  $('inputP').oninput = function() {
+    state.p = parseInt(this.value) || 97;
+    $('pVal').textContent = state.p;
+    updateParamsLocked();
+    if (!state.running && state.step === 0) {
+      state.netP = state.p;
+      updateInferLimits();
+      if (state.inferA >= state.p) { state.inferA = 0; $('inferA').value = 0; }
+      if (state.inferB >= state.p) { state.inferB = 0; $('inferB').value = 0; }
+      // Re-init worker so heatmap updates with new p
+      if (isPrime(state.p)) {
+        worker.postMessage({ type: 'reset', config: getConfig() });
+      }
+    }
+  };
+  $('inputFrac').oninput = function() {
+    state.frac = parseInt(this.value);
+    $('fracVal').textContent = state.frac + '%';
+  };
+  $('inputHidden').oninput = function() {
+    state.hiddenDim = parseInt(this.value);
+    $('hidVal').textContent = state.hiddenDim;
+  };
+  $('inputLR').oninput = function() {
+    state.lr = parseFloat(this.value);
+    $('lrVal').textContent = state.lr;
+    sendConfig();
+  };
+  $('inputWD').oninput = function() {
+    state.wd = parseInt(this.value);
+    $('wdVal').textContent = (state.wd / 1000).toFixed(3);
+    sendConfig();
+  };
+  $('inputSPF').oninput = function() {
+    state.spf = parseInt(this.value);
+    $('spfVal').textContent = state.spf;
+    sendConfig();
+  };
+  $('inferA').oninput = function() {
+    state.inferA = parseInt(this.value) || 0;
+  };
+  $('inferB').oninput = function() {
+    state.inferB = parseInt(this.value) || 0;
+  };
+
+  // Model selector buttons
+  $('btnModelMLP').onclick = function() {
+    state.modelType = 'mlp';
+    $('btnModelMLP').style.background = '#5b6eea';
+    $('btnModelMLP').style.color = '#fff';
+    $('btnModelTransformer').style.background = '#2a2d38';
+    $('btnModelTransformer').style.color = '#b0b4c8';
+    $('hidHint').textContent = 'Single hidden layer size.';
+    $('neuronsPanel').style.display = '';
+    $('embLabel').textContent = '— neuron weight space (PCA)';
+    $('embDesc').textContent = "each dot = one hidden neuron's weight vector (response to input a), projected to 2D. if neurons learn Fourier features, similar-frequency neurons should cluster. color = neuron index.";
+    if (state.step === 0) resetAndStart();
+  };
+  $('btnModelTransformer').onclick = function() {
+    state.modelType = 'transformer';
+    $('btnModelTransformer').style.background = '#5b6eea';
+    $('btnModelTransformer').style.color = '#fff';
+    $('btnModelMLP').style.background = '#2a2d38';
+    $('btnModelMLP').style.color = '#b0b4c8';
+    $('hidHint').textContent = 'Transformer model dimension (d_model).';
+    $('neuronsPanel').style.display = 'none';
+    $('embLabel').textContent = '— token embedding space (PCA)';
+    $('embDesc').textContent = 'each dot = one token (0 to p-1). projected to 2D via PCA. if the model discovers the circular group structure, tokens should arrange in a circle. color = token value.';
+    // Auto-switch to p=23 for Transformer (p=97 is too slow in browser)
+    if (state.p > 29) {
+      state.p = 23;
+      $('inputP').value = 23;
+      $('pVal').textContent = 23;
+      state.netP = 23;
+      updateInferLimits();
+    }
+    // Lower LR for Transformer stability (matches Power et al.)
+    state.lr = 0.001;
+    $('inputLR').value = 0.001;
+    $('lrVal').textContent = 0.001;
+    if (state.step === 0) resetAndStart();
+  };
+
+  // Buttons
+  $('btnStart').onclick = toggleTraining;
+  $('btnHeroStart').onclick = function() {
+    $('heroStart').style.display = 'none';
+    $('btnStart').style.display = '';
+    toggleTraining();
+  };
+  $('btnReset').onclick = resetAll;
+  $('settingsToggle').onclick = function() {
+    const drawer = $('settingsDrawer');
+    const isOpen = drawer.style.display !== 'none';
+    drawer.style.display = isOpen ? 'none' : 'flex';
+    this.textContent = isOpen ? 'settings' : 'hide settings';
+    this.classList.toggle('open', !isOpen);
+  };
+  $('btnPredict').onclick = runInference;
+  $('btnRandom').onclick = randomInference;
+
+  // Spacebar
+  document.addEventListener('keydown', function(e) {
+    if (e.code === 'Space' && e.target === document.body) {
+      e.preventDefault();
+      toggleTraining();
+    }
+  });
+
+  // Initial UI state
+  updateParamsLocked();
+  updateInferLimits();
+
+  // Init charts
+  initCharts();
+
+  // Create worker and start
+  createWorker();
+  resetAndStart();
+}
+
+init();
+</script>
+</body>
+</html>
